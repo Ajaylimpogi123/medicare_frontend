@@ -55,10 +55,10 @@ const generateMedicalCertificateHTML = (
   <meta charset="UTF-8" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: letter portrait; margin: 1in; }
+    @page { size: letter portrait; margin: 0.5in; }
     body {
       font-family: 'Times New Roman', Times, serif;
-      font-size: 12pt;
+      font-size: 16pt;
       color: #000;
     }
     .header {
@@ -69,7 +69,7 @@ const generateMedicalCertificateHTML = (
     }
     .doctor-name { font-size: 18pt; font-weight: bold; margin-bottom: 2px; }
     .clinic-info { font-size: 9pt; line-height: 1.3; margin-top: 4px; }
-    .date-row { text-align: right; font-size: 12pt; margin-bottom: 18px; }
+    .date-row { text-align: right; font-size: 14pt; margin-bottom: 18px; }
     .date-line {
       display: inline-block;
       border-bottom: 1px solid #000;
@@ -83,30 +83,30 @@ const generateMedicalCertificateHTML = (
       font-weight: bold;
       margin-bottom: 18px;
     }
-    .salutation { font-size: 12pt; margin-bottom: 14px; }
+    .salutation { font-size: 14pt; margin-bottom: 14px; }
     .fill {
       display: inline-block;
       border-bottom: 1px solid #000;
       padding: 0 4px;
     }
-    .cert-para { font-size: 12pt; line-height: 1.9; }
+    .cert-para { font-size: 14pt; line-height: 1.9; }
     .cert-para .indent { padding-left: 24px; }
     .fill-name { min-width: 220px; }
     .fill-full { display: block; width: 100%; margin-bottom: 2px; }
     .fill-date { min-width: 180px; }
-    .diagnosis-row { font-size: 12pt; line-height: 1.6; margin-top: 6px; }
+    .diagnosis-row { font-size: 14pt; line-height: 1.6; margin-top: 6px; }
     .diagnosis-row .fill-inline { min-width: 260px; }
     .blank-full {
       display: block;
       border-bottom: 1px solid #000;
       height: 24px;
     }
-    .recommendation-row { font-size: 12pt; line-height: 1.6; margin-top: 10px; }
+    .recommendation-row { font-size: 14pt; line-height: 1.6; margin-top: 10px; }
     .recommendation-row .fill-inline { min-width: 300px; }
-    .closing { font-size: 12pt; margin-top: 16px; line-height: 1.6; }
+    .closing { font-size: 14pt; margin-top: 16px; line-height: 1.6; }
     .signature-block { margin-top: 30px; text-align: right; }
-    .signature-name { font-size: 12pt; font-weight: bold; text-align: right; }
-    .signature-lic { font-size: 10pt; text-align: right; }
+    .signature-name { font-size: 14pt; font-weight: bold; text-align: right; }
+    .signature-lic { font-size: 12pt; text-align: right; }
   </style>
 </head>
 <body>
@@ -231,7 +231,9 @@ export default function MedicalCertificateScreen() {
   const handleSelectPatient = async (patient: Patient) => {
     setLoadingPatientId(patient.id);
     try {
-      const doctorName = user ? `${user.first_name} ${user.last_name}, M.D.` : "Physician";
+      const doctorName = user
+        ? `${user.first_name} ${user.last_name}, M.D.`
+        : "Physician";
       const prcNumber = user?.prc_id ?? "";
       const clinicName = activeClinic?.clinic_name ?? "Clinic";
       const clinicAddress = activeClinic?.address ?? "";
@@ -260,7 +262,10 @@ export default function MedicalCertificateScreen() {
               try {
                 await Print.printAsync({ html });
               } catch (err: any) {
-                Alert.alert("Print Failed", err?.message ?? "Something went wrong.");
+                Alert.alert(
+                  "Print Failed",
+                  err?.message ?? "Something went wrong.",
+                );
               }
             },
           },
@@ -380,7 +385,8 @@ export default function MedicalCertificateScreen() {
                 </Text>
                 <Text style={styles.cardSubDetails}>
                   {patient.gender
-                    ? patient.gender.charAt(0).toUpperCase() + patient.gender.slice(1)
+                    ? patient.gender.charAt(0).toUpperCase() +
+                      patient.gender.slice(1)
                     : "—"}{" "}
                   • DOB: {patient.birthdate ?? "—"}
                 </Text>

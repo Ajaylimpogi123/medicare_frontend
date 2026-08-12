@@ -137,8 +137,7 @@ const generateMedicalCertificateHTML = (
   </div>
   <div class="blank-full"></div>
   <div class="blank-full"></div>
-  <div class="blank-full"></div>
-  <div class="blank-full"></div>
+ 
 
   <div class="recommendation-row">
     Recommendation (s):<span class="fill fill-inline">&nbsp;</span>

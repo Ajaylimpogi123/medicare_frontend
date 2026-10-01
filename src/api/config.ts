@@ -8,4 +8,4 @@
 
 export const API_URL = "https://medicare.cravetechsolutions.com/api";
 
-// export const API_URL = "http://192.168.254.116:8000/api";
+// export const API_URL = "http://192.168.1.37:8000/api";

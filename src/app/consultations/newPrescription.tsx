@@ -1,5 +1,5 @@
 import { fetchPatientConsultations } from "@/api/consultation";
-import { createPatient, fetchPatientById, fetchPatients } from "@/api/patient";
+import { createPatient, fetchAllPatients, fetchPatientById } from "@/api/patient";
 import { useAuth } from "@/components/context/auth-context";
 import { newPrescriptionStyles as styles } from "@/styles/newPrescriptionStyles";
 import { calculateAge } from "@/utils/age";
@@ -7,7 +7,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Alert, BackHandler, Keyboard, KeyboardAvoidingView, Modal, Platform,
+  ActivityIndicator, Alert, BackHandler, Keyboard, KeyboardAvoidingView, Modal, Platform,
   RefreshControl, ScrollView, Text, TextInput, TouchableOpacity,
   TouchableWithoutFeedback, View,
 } from "react-native";
@@ -56,6 +56,7 @@ export default function NewPrescriptionScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateValue, setDateValue] = useState(new Date());
+  const [loadingPatientId, setLoadingPatientId] = useState<number | null>(null);
 
   // ─── Floating tap-to-edit bar (mirrors LoginScreen / current-queue pattern) ─
   const [activeField, setActiveField] = useState<FloatingFieldKey | null>(null);
@@ -120,8 +121,7 @@ export default function NewPrescriptionScreen() {
   const loadPatients = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
     try {
-      const res = await fetchPatients();
-      const allPatients: PatientRecord[] = res.data.data ?? res.data;
+      const allPatients: PatientRecord[] = await fetchAllPatients();
 
       const consultationChecks = await Promise.all(
         allPatients.map(async (p) => {
@@ -172,7 +172,10 @@ export default function NewPrescriptionScreen() {
     if (Platform.OS === "android") setShowDatePicker(false);
     if (selectedDate) {
       setDateValue(selectedDate);
-      setBirthdate(selectedDate.toISOString().split("T")[0]);
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const d = String(selectedDate.getDate()).padStart(2, "0");
+      setBirthdate(`${y}-${m}-${d}`);
     }
   };
 
@@ -212,8 +215,8 @@ export default function NewPrescriptionScreen() {
           patientName: `${newPatient.last_name}, ${newPatient.first_name}`,
           patientGender: newPatient.gender,
           patientBirthdate: newPatient.birthdate,
-          patientTemperature: newPatient.temperature ?? "",
-          patientBloodPressure: newPatient.blood_pressure ?? "",
+          patientTemperature: newPatient.temp ?? newPatient.temperature ?? "",
+          patientBloodPressure: newPatient.bp ?? newPatient.blood_pressure ?? "",
           patientHeight: newPatient.height ?? "",
           patientWeight: newPatient.weight ?? "",
           patientAllergies: newPatient.allergies ?? "",
@@ -228,6 +231,8 @@ export default function NewPrescriptionScreen() {
   };
 
   const handleSelectPatient = async (patient: PatientRecord) => {
+    if (loadingPatientId !== null) return;
+    setLoadingPatientId(patient.id);
     try {
       // Fetch full patient record to get vitals
       const patientRes = await fetchPatientById(patient.id);
@@ -240,8 +245,8 @@ export default function NewPrescriptionScreen() {
           patientName: `${patient.last_name}, ${patient.first_name}`,
           patientGender: patient.gender,
           patientBirthdate: patient.birthdate,
-          patientTemperature: fullPatient.temperature ?? "",
-          patientBloodPressure: fullPatient.blood_pressure ?? "",
+          patientTemperature: fullPatient.temp ?? fullPatient.temperature ?? "",
+          patientBloodPressure: fullPatient.bp ?? fullPatient.blood_pressure ?? "",
           patientHeight: fullPatient.height ?? "",
           patientWeight: fullPatient.weight ?? "",
           patientAllergies: fullPatient.allergies ?? "",
@@ -249,6 +254,8 @@ export default function NewPrescriptionScreen() {
       });
     } catch {
       Alert.alert("Error", "Could not load patient details.");
+    } finally {
+      setLoadingPatientId(null);
     }
   };
 
@@ -370,6 +377,7 @@ export default function NewPrescriptionScreen() {
                 style={styles.patientCard}
                 onPress={() => handleSelectPatient(patient)}
                 activeOpacity={0.75}
+                disabled={loadingPatientId !== null}
               >
                 <View style={styles.cardInfoGroup}>
                   <Text style={styles.cardNameText}>
@@ -386,7 +394,11 @@ export default function NewPrescriptionScreen() {
                     <Text style={styles.cardSubDetails}>📱 +63 {patient.phone_number}</Text>
                   ) : null}
                 </View>
-                <Text style={styles.chevron}>›</Text>
+                {loadingPatientId === patient.id ? (
+                  <ActivityIndicator size="small" color="#095c29" />
+                ) : (
+                  <Text style={styles.chevron}>›</Text>
+                )}
               </TouchableOpacity>
             ))
           )}

@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "updates": {
       "enabled": false,
-      "checkAutomatically": "ON_ERROR_RECOVERY"
+      "checkAutomatically": "ON_ERROR_RECOVERY",
+      "url": "https://u.expo.dev/fe03261d-bcf5-477a-9adb-aed5df8760b0"
     },
     "ios": {
       "icon": "./assets/expo.icon"
@@ -56,6 +57,9 @@
         "projectId": "fe03261d-bcf5-477a-9adb-aed5df8760b0"
       }
     },
-    "owner": "cypherlee"
+    "owner": "cypherlee",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    }
   }
 }

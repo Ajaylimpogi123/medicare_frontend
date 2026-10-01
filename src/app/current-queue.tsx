@@ -1,12 +1,12 @@
 import { fetchPatientConsultations } from "@/api/consultation";
-import { createPatient, updatePatient } from "@/api/patient";
+import { createPatient, fetchPatientById, updatePatient } from "@/api/patient";
 import { addToQueue, fetchQueue, removeFromQueue } from "@/api/queue";
 import { useAuth } from "@/components/context/auth-context";
 import { currentQueueStyles as styles } from "@/styles/currentQueueStyles";
 import { calculateAge } from "@/utils/age";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { useRouter } from "expo-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert, BackHandler, Keyboard, KeyboardAvoidingView, Modal, Platform,
   RefreshControl, ScrollView, Text, TextInput, TouchableOpacity,
@@ -24,6 +24,8 @@ type QueueEntry = {
     birthdate: string;
     phone_number: string;
     email: string;
+    temp?: string;
+    bp?: string;
     temperature?: string;
     blood_pressure?: string;
     height?: string;
@@ -51,6 +53,8 @@ export default function CurrentQueueScreen() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingPatientId, setEditingPatientId] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Patient created by a save whose addToQueue failed — reused on retry to avoid duplicates
+  const createdPatientRef = useRef<any>(null);
 
   const [lastName, setLastName] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -154,9 +158,11 @@ export default function CurrentQueueScreen() {
     }
   };
 
-  useEffect(() => {
-    if (user && activeClinic) loadQueue();
-  }, [user, activeClinic]);
+  useFocusEffect(
+    useCallback(() => {
+      if (user && activeClinic) loadQueue();
+    }, [user, activeClinic])
+  );
 
   const filteredQueue = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -169,6 +175,7 @@ export default function CurrentQueueScreen() {
 
   const resetForm = () => {
     setEditingPatientId(null);
+    createdPatientRef.current = null;
     setLastName(""); setFirstName(""); setGender("Female");
     setBirthdate(""); setDateValue(new Date());
     setCivilStatus("Single"); setHeight(""); setWeight("");
@@ -181,8 +188,17 @@ export default function CurrentQueueScreen() {
     setShowAddForm(true);
   };
 
-  const openEditForm = (entry: QueueEntry) => {
+  const openEditForm = async (entry: QueueEntry) => {
     const p = entry.patient;
+    // Queue rows lack civil status/vitals — load the full record so saving doesn't wipe them
+    let full: any;
+    try {
+      const res = await fetchPatientById(p.id);
+      full = res.data.data ?? res.data;
+    } catch {
+      Alert.alert("Error", "Could not load patient details.");
+      return;
+    }
     setEditingPatientId(p.id);
     setLastName(p.last_name);
     setFirstName(p.first_name);
@@ -194,12 +210,16 @@ export default function CurrentQueueScreen() {
     setBirthdate(p.birthdate ?? "");
     const parsed = Date.parse(p.birthdate);
     setDateValue(!isNaN(parsed) ? new Date(parsed) : new Date());
-    setCivilStatus("Single");
-    setHeight(p.height ?? "");
-    setWeight(p.weight ?? "");
-    setTemp(p.temperature ?? "");
-    setBp(p.blood_pressure ?? "");
-    setAllergies(p.allergies ?? "");
+    setCivilStatus(
+      full?.civil_status
+        ? (full.civil_status.charAt(0).toUpperCase() + full.civil_status.slice(1)) as typeof civilStatus
+        : "Single"
+    );
+    setHeight(full?.height?.toString() ?? "");
+    setWeight(full?.weight?.toString() ?? "");
+    setTemp((full?.temp ?? full?.temperature)?.toString() ?? "");
+    setBp(full?.bp ?? full?.blood_pressure ?? "");
+    setAllergies(full?.allergies ?? "");
     setEmail(p.email ?? "");
     setMobileNumber(p.phone_number ?? "");
     setShowAddForm(true);
@@ -209,7 +229,10 @@ export default function CurrentQueueScreen() {
     if (Platform.OS === "android") setShowDatePicker(false);
     if (selectedDate) {
       setDateValue(selectedDate);
-      setBirthdate(selectedDate.toISOString().split("T")[0]);
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const d = String(selectedDate.getDate()).padStart(2, "0");
+      setBirthdate(`${y}-${m}-${d}`);
     }
   };
 
@@ -247,9 +270,23 @@ export default function CurrentQueueScreen() {
         await loadQueue();
         Alert.alert("Updated", `Patient record for ${firstName} ${lastName} has been updated.`);
       } else {
-        const response = await createPatient(payload);
-        const newPatient = response.data.patient;
-        await addToQueue(newPatient.id);
+        let newPatient = createdPatientRef.current;
+        if (newPatient) {
+          // Retry after addToQueue failed: patient already exists, just save any edits
+          const r = await updatePatient(newPatient.id, payload);
+          newPatient = r.data.patient ?? newPatient;
+        } else {
+          const response = await createPatient(payload);
+          newPatient = response.data.patient;
+          createdPatientRef.current = newPatient;
+        }
+        try {
+          await addToQueue(newPatient.id);
+        } catch (queueErr: any) {
+          // 409 = already in today's queue; treat as queued
+          if (queueErr?.response?.status !== 409) throw queueErr;
+        }
+        createdPatientRef.current = null;
         setShowAddForm(false);
         await loadQueue();
 
@@ -264,8 +301,8 @@ export default function CurrentQueueScreen() {
               patientName: `${newPatient.last_name}, ${newPatient.first_name}`,
               patientGender: newPatient.gender,
               patientBirthdate: newPatient.birthdate,
-              patientTemperature: newPatient.temperature ?? "",
-              patientBloodPressure: newPatient.blood_pressure ?? "",
+              patientTemperature: newPatient.temp ?? newPatient.temperature ?? "",
+              patientBloodPressure: newPatient.bp ?? newPatient.blood_pressure ?? "",
               patientHeight: newPatient.height ?? "",
               patientWeight: newPatient.weight ?? "",
               patientAllergies: newPatient.allergies ?? "",
@@ -317,8 +354,8 @@ export default function CurrentQueueScreen() {
         patientName: `${entry.patient.last_name}, ${entry.patient.first_name}`,
         patientGender: entry.patient.gender,
         patientBirthdate: entry.patient.birthdate,
-        patientTemperature: entry.patient.temperature ?? "",
-        patientBloodPressure: entry.patient.blood_pressure ?? "",
+        patientTemperature: entry.patient.temp ?? entry.patient.temperature ?? "",
+        patientBloodPressure: entry.patient.bp ?? entry.patient.blood_pressure ?? "",
         patientHeight: entry.patient.height ?? "",
         patientWeight: entry.patient.weight ?? "",
         patientAllergies: entry.patient.allergies ?? "",

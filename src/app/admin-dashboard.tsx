@@ -99,7 +99,7 @@ export default function AdminDashboard() {
       };
 
       const response = await apiClient.post("/clinics", payload);
-      Alert.alert("Success", `Clinic "${response.data.clinic_name}" created.`);
+      Alert.alert("Success", `Clinic "${response.data.clinic?.clinic_name}" created.`);
 
       setClinicName(""); setClinicAddress(""); setClinicPhone(""); setDoctorId("");
     } catch (error: any) {

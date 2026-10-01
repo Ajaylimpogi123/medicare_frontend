@@ -1,5 +1,6 @@
 import axios from "axios";
 import * as SecureStore from "expo-secure-store";
+import { router } from "expo-router";
 
 import { API_URL } from "./config";
 
@@ -23,5 +24,19 @@ apiClient.interceptors.request.use(async (config) => {
 
   return config;
 });
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      await SecureStore.deleteItemAsync("userToken");
+      await SecureStore.deleteItemAsync("activeClinic");
+      await SecureStore.deleteItemAsync("userData");
+      await SecureStore.deleteItemAsync("userClinics");
+      router.replace("/login");
+    }
+    return Promise.reject(error);
+  },
+);
 
 export default apiClient;

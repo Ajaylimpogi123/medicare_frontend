@@ -5,8 +5,6 @@ import axios from "axios";
 import * as SecureStore from "expo-secure-store";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
-
-
 interface AuthContextType {
   token: string | null;
   user: User | null;
@@ -33,7 +31,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const storedToken = await SecureStore.getItemAsync("userToken");
         const storedUser = await SecureStore.getItemAsync("userData");
         const storedClinics = await SecureStore.getItemAsync("userClinics");
-        const storedActiveClinic = await SecureStore.getItemAsync("activeClinic");
+        const storedActiveClinic =
+          await SecureStore.getItemAsync("activeClinic");
 
         if (storedToken && storedUser) {
           setToken(storedToken);
@@ -53,6 +52,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const login = async (email: string, password: string) => {
     try {
+      // Clear any active clinic left over from a previous session
+      setActiveClinic(null);
+      await SecureStore.deleteItemAsync("activeClinic");
+
       // FIX: was /login — correct endpoint is /auth/login
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
@@ -63,7 +66,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
       await SecureStore.setItemAsync("userToken", newToken);
       await SecureStore.setItemAsync("userData", JSON.stringify(userData));
-      await SecureStore.setItemAsync("userClinics", JSON.stringify(userData.clinics));
+      await SecureStore.setItemAsync(
+        "userClinics",
+        JSON.stringify(userData.clinics),
+      );
 
       setToken(newToken);
       setUser(userData);
@@ -81,7 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await axios.post(
         `${API_URL}/auth/logout`,
         {},
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
     } catch (error) {
       console.error("Logout API call failed:", error);
@@ -104,7 +110,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <AuthContext.Provider
-      value={{ token, user, clinics, activeClinic, login, logout, selectClinic, isLoading }}
+      value={{
+        token,
+        user,
+        clinics,
+        activeClinic,
+        login,
+        logout,
+        selectClinic,
+        isLoading,
+      }}
     >
       {children}
     </AuthContext.Provider>

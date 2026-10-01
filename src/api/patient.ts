@@ -32,6 +32,8 @@ apiClient.interceptors.response.use(
       // Clear stale credentials
       await SecureStore.deleteItemAsync('userToken');
       await SecureStore.deleteItemAsync('activeClinic');
+      await SecureStore.deleteItemAsync('userData');
+      await SecureStore.deleteItemAsync('userClinics');
 
       // Redirect to login
       router.replace('/login');
@@ -41,6 +43,22 @@ apiClient.interceptors.response.use(
 );
 
 export const fetchPatients         = ()                               => apiClient.get('/patients');
+
+// Walk every page of the paginated /patients endpoint and return all rows
+export const fetchAllPatients = async () => {
+  let page = 1;
+  let all: any[] = [];
+  while (true) {
+    const res = await apiClient.get('/patients', { params: { page } });
+    const body = res.data;
+    const items = body?.data ?? body;
+    if (Array.isArray(items)) all = all.concat(items);
+    if (!body?.last_page || page >= body.last_page) break;
+    page++;
+  }
+  return all;
+};
+
 export const fetchPatientById      = (id: string | number)            => apiClient.get(`/patients/${id}`);
 export const createPatient         = (data: any)                      => apiClient.post('/patients', data);
 export const updatePatient         = (id: string | number, data: any) => apiClient.put(`/patients/${id}`, data);

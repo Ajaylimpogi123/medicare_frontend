@@ -34,7 +34,7 @@ type DiagnosisRecord = {
     id: number;
     first_name: string;
     last_name: string;
-    gender: string;
+    gender: string | null;
     birthdate: string;
   };
   prescriptions: Prescription[];
@@ -70,7 +70,10 @@ export default function DiseaseDetailScreen() {
     try {
       const res = await fetchDiseasePatients(Number(id));
       setDisease(res.data.disease);
-      setDiagnoses(res.data.diagnoses);
+      // Skip rows whose patient was deleted (backend returns patient: null)
+      setDiagnoses(
+        (res.data.diagnoses ?? []).filter((d: DiagnosisRecord) => d.patient)
+      );
 
       navigation.setOptions({
         headerTitle: res.data.disease.disease_name,
@@ -255,8 +258,10 @@ export default function DiseaseDetailScreen() {
                     {diag.patient.last_name}, {diag.patient.first_name}
                   </Text>
                   <Text style={styles.patientSub}>
-                    {diag.patient.gender.charAt(0).toUpperCase() +
-                      diag.patient.gender.slice(1)}{" "}
+                    {diag.patient.gender
+                      ? diag.patient.gender.charAt(0).toUpperCase() +
+                        diag.patient.gender.slice(1)
+                      : "—"}{" "}
                     • {calculateAge(diag.patient.birthdate)} yrs
                   </Text>
                   <Text style={styles.diagnosedDate}>

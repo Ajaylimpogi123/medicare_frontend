@@ -1,7 +1,6 @@
 import { useAuth } from "@/components/context/auth-context";
 import { loginStyles as styles } from "@/styles/loginStyles";
 import { COLORS } from "@/theme";
-import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -98,12 +97,13 @@ export default function LoginScreen() {
     try {
       await login(currentEmail, currentPassword);
       setFailedAttempts(0);
-      router.replace("/clinic-selection");
+      // Navigation is handled by RootStack's effect in _layout.tsx (routes by role)
     } catch (error: any) {
       const msg =
         error?.response?.data?.message ?? error?.message ?? "Unknown error";
-      Alert.alert("Error Detail", msg);
-      handleFailedAttempt();
+      // Only wrong credentials count toward the lockout (not network/server errors)
+      if (error?.response?.status === 401) handleFailedAttempt();
+      else Alert.alert("Login Failed", msg);
     } finally {
       setIsLoading(false);
     }
@@ -113,6 +113,7 @@ export default function LoginScreen() {
     const nextAttempts = failedAttempts + 1;
     setFailedAttempts(nextAttempts);
     if (nextAttempts >= 5) {
+      setFailedAttempts(0);
       setLockoutTimeLeft(180);
       Alert.alert(
         "Account Locked",

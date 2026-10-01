@@ -9,6 +9,7 @@ export interface User {
   email: string;
   phone_number: string;
   role: UserRole;
-  prc_id?: string;    // doctors only
-  clinics: Clinic[];  // user can belong to multiple clinics
+  prc_id: string; // doctors only
+  specialization: string; // doctors only
+  clinics: Clinic[]; // user can belong to multiple clinics
 }

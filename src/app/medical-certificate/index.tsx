@@ -1,5 +1,5 @@
 import { fetchPatientConsultations } from "@/api/consultation";
-import { fetchPatients } from "@/api/patient";
+import { fetchAllPatients } from "@/api/patient";
 import { useAuth } from "@/components/context/auth-context";
 import { medicalCertStyles as styles } from "@/styles/MedicalcertStyles";
 import * as MailComposer from "expo-mail-composer";
@@ -26,6 +26,13 @@ type Patient = {
   birthdate: string;
 };
 
+// ── Page size constants ───────────────────────────────────────────────────────
+// expo-print's printAsync/printToFileAsync ignore the CSS @page size — they
+// default to US Letter (612x792pt) unless width/height are passed explicitly.
+// A5 = 148mm x 210mm = 5.83in x 8.27in = 420pt x 595pt (at 72pt/inch).
+const A5_WIDTH_PT = 420;
+const A5_HEIGHT_PT = 595;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const formatDisplayDate = (date: Date) =>
@@ -35,14 +42,25 @@ const formatDisplayDate = (date: Date) =>
     year: "numeric",
   });
 
+// Escape user-supplied text before interpolating it into the certificate HTML
+const esc = (value: string | null | undefined) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+
 // ── PDF HTML Generator ────────────────────────────────────────────────────────
 // Blank fill-in-the-blank template — the doctor handwrites the clinical content
 // after printing. Only the patient's name, doctor/clinic letterhead, and
 // today's date are pre-filled from data we already have.
+// Font sizes are tuned to fit A5 (5.8in x 8.3in) on one page.
 
 const generateMedicalCertificateHTML = (
   patientFullName: string,
   doctorName: string,
+  doctorSpecialization: string,
   prcNumber: string,
   clinicName: string,
   clinicAddress: string,
@@ -55,67 +73,69 @@ const generateMedicalCertificateHTML = (
   <meta charset="UTF-8" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    @page { size: letter portrait; margin: 0.5in; }
+    @page { size: A5 portrait; margin: 0.35in; }
+    html, body { width: 148mm; height: 210mm; }
     body {
       font-family: 'Times New Roman', Times, serif;
-      font-size: 16pt;
+      font-size: 12pt;
       color: #000;
     }
     .header {
       text-align: center;
       border-bottom: 2px double #000;
-      padding-bottom: 8px;
-      margin-bottom: 14px;
+      padding-bottom: 6px;
+      margin-bottom: 10px;
     }
-    .doctor-name { font-size: 18pt; font-weight: bold; margin-bottom: 2px; }
-    .clinic-info { font-size: 9pt; line-height: 1.3; margin-top: 4px; }
-    .date-row { text-align: right; font-size: 14pt; margin-bottom: 18px; }
+    .doctor-name { font-size: 15pt; font-weight: bold; margin-bottom: 2px; }
+    .clinic-info { font-size: 11.5pt; line-height: 1.25; margin-top: 3px; }
+    .date-row { text-align: right; font-size: 12pt; margin-bottom: 12px; }
     .date-line {
       display: inline-block;
-      border-bottom: 1px solid #000;
-      min-width: 160px;
+      border-bottom: 0.75px solid #444;
+      min-width: 110px;
       padding-bottom: 2px;
       margin-left: 6px;
     }
     .title {
       text-align: center;
-      font-size: 22pt;
+      font-size: 15pt;
       font-weight: bold;
-      margin-bottom: 18px;
+      margin-bottom: 12px;
     }
-    .salutation { font-size: 14pt; margin-bottom: 14px; }
+    .salutation { font-size: 12pt; margin-bottom: 10px; }
     .fill {
       display: inline-block;
-      border-bottom: 1px solid #000;
+      border-bottom: 0.75px solid #444;
       padding: 0 4px;
     }
-    .cert-para { font-size: 14pt; line-height: 1.9; }
-    .cert-para .indent { padding-left: 24px; }
-    .fill-name { min-width: 220px; }
+    .cert-para { font-size: 12pt; line-height: 1.6; }
+    .cert-para .indent { padding-left: 16px; }
+    .fill-name { min-width: 150px; }
     .fill-full { display: block; width: 100%; margin-bottom: 2px; }
-    .fill-date { min-width: 180px; }
-    .diagnosis-row { font-size: 14pt; line-height: 1.6; margin-top: 6px; }
-    .diagnosis-row .fill-inline { min-width: 260px; }
+    .fill-date { min-width: 120px; }
+    .diagnosis-row { font-size: 12pt; line-height: 1.4; margin-top: 4px; }
+    .diagnosis-row .fill-inline { min-width: 170px; }
     .blank-full {
       display: block;
-      border-bottom: 1px solid #000;
-      height: 24px;
+      border-bottom: 0.75px solid #444;
+      height: 16px;
     }
-    .recommendation-row { font-size: 14pt; line-height: 1.6; margin-top: 10px; }
-    .recommendation-row .fill-inline { min-width: 300px; }
-    .closing { font-size: 14pt; margin-top: 16px; line-height: 1.6; }
-    .signature-block { margin-top: 30px; text-align: right; }
-    .signature-name { font-size: 14pt; font-weight: bold; text-align: right; }
+    .recommendation-row { font-size: 12pt; line-height: 1.4; margin-top: 8px; }
+    .recommendation-row .fill-inline { min-width: 190px; }
+    .closing { font-size: 12pt; margin-top: 10px; line-height: 1.4; }
+    .signature-block { margin-top: 50px; text-align: right; }
+    .signature-name { font-size: 12pt; font-weight: bold; text-align: right; }
     .signature-lic { font-size: 12pt; text-align: right; }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="doctor-name">${doctorName}</div>
+    <div class="doctor-name">${esc(doctorName)}</div>
     <div class="clinic-info">
-      <div><strong>${clinicName}</strong></div>
-      ${clinicAddress ? `<div>${clinicAddress}</div>` : ""}
-      ${clinicContact ? `<div>Tel No.: ${clinicContact}</div>` : ""}
+      <div><strong>${esc(doctorSpecialization)}</strong></div>
+      <div><strong>${esc(clinicName)}</strong></div>
+      ${clinicAddress ? `<div>${esc(clinicAddress)}</div>` : ""}
+      ${clinicContact ? `<div>Tel No.: ${esc(clinicContact)}</div>` : ""}
     </div>
   </div>
 
@@ -127,7 +147,7 @@ const generateMedicalCertificateHTML = (
 
   <div class="cert-para">
     <span class="indent">This is to certify that</span>
-    <span class="fill fill-name">${patientFullName}</span> of
+    <span class="fill fill-name">${esc(patientFullName)}</span> of
     <span class="fill fill-full">&nbsp;</span>
     has consulted me on <span class="fill fill-date">&nbsp;</span>
   </div>
@@ -137,7 +157,6 @@ const generateMedicalCertificateHTML = (
   </div>
   <div class="blank-full"></div>
   <div class="blank-full"></div>
- 
 
   <div class="recommendation-row">
     Recommendation (s):<span class="fill fill-inline">&nbsp;</span>
@@ -151,8 +170,8 @@ const generateMedicalCertificateHTML = (
   </div>
 
   <div class="signature-block">
-    <div class="signature-name">${doctorName}</div>
-    <div class="signature-lic">Lic No.: ${prcNumber || "____________"}</div>
+    <div class="signature-name">${esc(doctorName)}</div>
+    <div class="signature-lic">Lic No.: ${esc(prcNumber) || "____________"}</div>
     <div class="signature-lic">PTR No.: ____________</div>
   </div>
 </body>
@@ -176,8 +195,7 @@ export default function MedicalCertificateScreen() {
     if (showRefresh) setIsRefreshing(true);
     else setIsLoading(true);
     try {
-      const res = await fetchPatients();
-      const allPatients: Patient[] = res.data.data ?? res.data;
+      const allPatients: Patient[] = await fetchAllPatients();
 
       // Only patients with at least one consultation on record
       const consultationChecks = await Promise.all(
@@ -233,16 +251,18 @@ export default function MedicalCertificateScreen() {
       const doctorName = user
         ? `${user.first_name} ${user.last_name}, M.D.`
         : "Physician";
+      const doctorSpecialization = user?.specialization ?? "";
       const prcNumber = user?.prc_id ?? "";
       const clinicName = activeClinic?.clinic_name ?? "Clinic";
       const clinicAddress = activeClinic?.address ?? "";
       const clinicContact = activeClinic?.phone_number ?? "";
       const patientFullName = `${patient.first_name} ${patient.last_name}`;
       const issuedAt = new Date();
-
+      console.log("activeClinic", JSON.stringify(activeClinic));
       const html = generateMedicalCertificateHTML(
         patientFullName,
         doctorName,
+        doctorSpecialization,
         prcNumber,
         clinicName,
         clinicAddress,
@@ -259,7 +279,13 @@ export default function MedicalCertificateScreen() {
             text: "📤 Share / Print",
             onPress: async () => {
               try {
-                await Print.printAsync({ html });
+                // width/height (in points) force A5 — expo-print ignores
+                // the CSS @page size and defaults to Letter otherwise.
+                await Print.printAsync({
+                  html,
+                  width: A5_WIDTH_PT,
+                  height: A5_HEIGHT_PT,
+                });
               } catch (err: any) {
                 Alert.alert(
                   "Print Failed",
@@ -272,7 +298,11 @@ export default function MedicalCertificateScreen() {
             text: "📧 Send via Email",
             onPress: async () => {
               try {
-                const { uri } = await Print.printToFileAsync({ html });
+                const { uri } = await Print.printToFileAsync({
+                  html,
+                  width: A5_WIDTH_PT,
+                  height: A5_HEIGHT_PT,
+                });
                 const isAvailable = await MailComposer.isAvailableAsync();
                 if (!isAvailable) {
                   Alert.alert(

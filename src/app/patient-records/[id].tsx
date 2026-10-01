@@ -120,8 +120,8 @@ export default function PatientDetailsScreen() {
         />
         <DetailField label="Height" value={patient.height ? `${patient.height} cm` : "N/A"} />
         <DetailField label="Weight" value={patient.weight ? `${patient.weight} kg` : "N/A"} />
-        <DetailField label="Temperature" value={patient.temperature ? `${patient.temperature} °C` : "N/A"} />
-        <DetailField label="Blood Pressure" value={patient.blood_pressure || "N/A"} />
+        <DetailField label="Temperature" value={(patient.temp ?? patient.temperature) ? `${patient.temp ?? patient.temperature} °C` : "N/A"} />
+        <DetailField label="Blood Pressure" value={(patient.bp ?? patient.blood_pressure) || "N/A"} />
         <DetailField label="Allergies" value={patient.allergies || "N/A"} />
 
         {/* PRESCRIPTION HISTORY */}

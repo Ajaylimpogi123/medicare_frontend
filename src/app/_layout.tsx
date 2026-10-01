@@ -54,7 +54,7 @@ function RootStack() {
         options={{ title: "Admin Control Panel" }}
       />
       <Stack.Screen
-        name="patient-records"
+        name="patient-records/index"
         options={{ title: "Patient Records" }}
       />
       <Stack.Screen
@@ -65,7 +65,7 @@ function RootStack() {
         name="patient-records/[id]/prescriptions"
         options={{ title: "Prescription History" }}
       />
-      <Stack.Screen name="consultations" options={{ title: "Consultations" }} />
+      <Stack.Screen name="consultations/index" options={{ title: "Consultations" }} />
       <Stack.Screen
         name="consultations/newPrescription"
         options={{ title: "New Prescription" }}
@@ -76,13 +76,13 @@ function RootStack() {
       />
       {/* <Stack.Screen name="transactions" options={{ title: "Transactions" }} /> */}
       <Stack.Screen
-        name="brand-directory"
+        name="brand-directory/index"
         options={{ title: "Brand Directory" }}
       />
-      <Stack.Screen name="generics" options={{ title: "Generics" }} />
-      <Stack.Screen name="diseases" options={{ title: "Diseases" }} />
+      <Stack.Screen name="generics/index" options={{ title: "Generics" }} />
+      <Stack.Screen name="diseases/index" options={{ title: "Diseases" }} />
       <Stack.Screen
-        name="medical-certificate"
+        name="medical-certificate/index"
         options={{ title: "Medical Certificate" }}
       />
       <Stack.Screen name="current-queue" options={{ title: "Current Queue" }} />

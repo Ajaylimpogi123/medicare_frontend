@@ -26,13 +26,18 @@ queueClient.interceptors.response.use(
     if (error.response?.status === 401) {
       await SecureStore.deleteItemAsync("userToken");
       await SecureStore.deleteItemAsync("activeClinic");
+      await SecureStore.deleteItemAsync("userData");
+      await SecureStore.deleteItemAsync("userClinics");
       router.replace("/login");
     }
     return Promise.reject(error);
-  }
+  },
 );
 
-export const fetchQueue              = ()                  => queueClient.get("/queue");
-export const addToQueue              = (patientId: number) => queueClient.post("/queue", { patient_id: patientId });
-export const removeFromQueue         = (queueId: number)   => queueClient.delete(`/queue/${queueId}`);
-export const removeFromQueueByPatient = (patientId: number) => queueClient.delete(`/queue/by-patient/${patientId}`);
+export const fetchQueue = () => queueClient.get("/queue");
+export const addToQueue = (patientId: number) =>
+  queueClient.post("/queue", { patient_id: patientId });
+export const removeFromQueue = (queueId: number) =>
+  queueClient.delete(`/queue/${queueId}`);
+export const removeFromQueueByPatient = (patientId: number) =>
+  queueClient.delete(`/queue/by-patient/${patientId}`);

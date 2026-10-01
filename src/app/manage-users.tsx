@@ -70,7 +70,7 @@ export default function ManageUsersScreen() {
     setFirstName(user.first_name);
     setLastName(user.last_name);
     setEmail(user.email);
-    setPhoneNumber(user.phone_number);
+    setPhoneNumber(user.phone_number ?? "");
     setSpecialization(user.specialization ?? "");
     setClinicIds(user.clinics.map((c) => c.id).join(", "));
     setModalVisible(true);

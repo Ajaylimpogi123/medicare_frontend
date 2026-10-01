@@ -1,5 +1,5 @@
 import { fetchPatientConsultations } from "@/api/consultation";
-import { deletePatient, fetchPatients, updatePatient } from "@/api/patient";
+import { deletePatient, fetchAllPatients, fetchPatientById, updatePatient } from "@/api/patient";
 import { useAuth } from "@/components/context/auth-context";
 import { patientRecordsStyles as styles } from "@/styles/patientRecordsStyles";
 import { calculateAge } from "@/utils/age";
@@ -54,8 +54,7 @@ export default function PatientRecordsScreen() {
   const loadPatients = async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
     try {
-      const response = await fetchPatients();
-      const apiData = response.data.data || [];
+      const apiData = await fetchAllPatients();
       const formattedData = apiData.map((p: any) => ({
         id: p.id,
         lastName: p.last_name,
@@ -104,7 +103,16 @@ export default function PatientRecordsScreen() {
       .sort((a, b) => a.lastName.localeCompare(b.lastName));
   }, [patientDatabase, searchQuery]);
 
-  const openEditForm = (patient: PatientRecord) => {
+  const openEditForm = async (patient: PatientRecord) => {
+    // List rows lack civil status/vitals — load the full record so saving doesn't wipe them
+    let full: any;
+    try {
+      const res = await fetchPatientById(patient.id);
+      full = res.data.data ?? res.data;
+    } catch {
+      Alert.alert("Error", "Could not load patient details.");
+      return;
+    }
     setLastName(patient.lastName);
     setFirstName(patient.firstName);
     setGender(patient.gender);
@@ -113,8 +121,16 @@ export default function PatientRecordsScreen() {
     setMobileNumber(patient.mobileNumber);
     const parsedDate = Date.parse(patient.birthdate);
     setDateValue(!isNaN(parsedDate) ? new Date(parsedDate) : new Date());
-    setCivilStatus("Single"); setHeight(""); setWeight(""); setAllergies("");
-    setTemp(""); setBp("");
+    setCivilStatus(
+      full?.civil_status
+        ? (full.civil_status.charAt(0).toUpperCase() + full.civil_status.slice(1)) as typeof civilStatus
+        : "Single"
+    );
+    setHeight(full?.height?.toString() ?? "");
+    setWeight(full?.weight?.toString() ?? "");
+    setAllergies(full?.allergies ?? "");
+    setTemp((full?.temp ?? full?.temperature)?.toString() ?? "");
+    setBp(full?.bp ?? full?.blood_pressure ?? "");
     setEditingPatientId(patient.id);
     setIsEditing(true);
   };
@@ -128,7 +144,10 @@ export default function PatientRecordsScreen() {
     if (Platform.OS === "android") setShowDatePicker(false);
     if (selectedDate) {
       setDateValue(selectedDate);
-      setBirthdate(selectedDate.toISOString().split("T")[0]);
+      const y = selectedDate.getFullYear();
+      const m = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const d = String(selectedDate.getDate()).padStart(2, "0");
+      setBirthdate(`${y}-${m}-${d}`);
     }
   };
 

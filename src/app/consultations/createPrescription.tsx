@@ -493,7 +493,12 @@ export default function CreatePrescriptionScreen() {
 
     setIsSubmitting(true);
     try {
-      const consultationDate = new Date().toISOString().replace("T", " ").substring(0, 19);
+      // Local time (backend runs in the clinic's timezone, not UTC)
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const consultationDate =
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
+        `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
       const payload = {
         patient_id: Number(patientId),
         clinic_id: activeClinic.id,
@@ -518,16 +523,24 @@ export default function CreatePrescriptionScreen() {
 
       const res = await apiClient.post("/consultations", payload);
 
+      let queueRemovalFailed = false;
       if (queueId) {
         try { await removeFromQueue(Number(queueId)); }
-        catch { console.log("queueId param:", queueId); }
+        catch { queueRemovalFailed = true; }
       }
 
       const savedConsultation = res.data.consultation;
 
+      // Shown inside the "Consultation Saved" alert so it isn't lost behind a second stacked alert
+      const queueWarning = queueRemovalFailed
+        ? "Note: the patient could not be removed from the queue. Please remove them from the queue manually.\n\n"
+        : "";
+
+      // isSubmitting stays true on success: every button below navigates away,
+      // so Save must not be re-enabled (it would create a duplicate consultation).
       Alert.alert(
         "Consultation Saved",
-        "Would you like to print the prescription?",
+        `${queueWarning}Would you like to print the prescription?`,
         [
           { text: "No", style: "cancel", onPress: () => router.back() },
           {
@@ -547,7 +560,8 @@ export default function CreatePrescriptionScreen() {
     } catch (err: any) {
       const message = err?.response?.data?.message || (Object.values(err?.response?.data?.errors ?? {}) as string[][])?.[0]?.[0] || "Failed to save consultation.";
       Alert.alert("Error", message);
-    } finally { setIsSubmitting(false); }
+      setIsSubmitting(false);
+    }
   };
 
   return (

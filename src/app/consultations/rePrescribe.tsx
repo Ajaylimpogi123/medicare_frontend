@@ -1,5 +1,5 @@
 import { fetchPatientConsultations } from "@/api/consultation";
-import { fetchPatientById, fetchPatients } from "@/api/patient";
+import { fetchAllPatients, fetchPatientById } from "@/api/patient";
 import { rePrescribeStyles as styles } from "@/styles/rePrescribeStyles";
 import { calculateAge } from "@/utils/age";
 import { useRouter } from "expo-router";
@@ -80,8 +80,7 @@ export default function ReprescribeScreen() {
     if (showRefresh) setIsRefreshing(true);
     else setIsLoading(true);
     try {
-      const res = await fetchPatients();
-      const allPatients: Patient[] = res.data.data ?? res.data;
+      const allPatients: Patient[] = await fetchAllPatients();
 
       const consultationChecks = await Promise.all(
         allPatients.map(async (p) => {
@@ -177,8 +176,8 @@ export default function ReprescribeScreen() {
           patientName: `${patient.last_name}, ${patient.first_name}`,
           patientGender: patient.gender,
           patientBirthdate: patient.birthdate,
-          patientTemperature: fullPatient.temperature ?? "",
-          patientBloodPressure: fullPatient.blood_pressure ?? "",
+          patientTemperature: fullPatient.temp ?? fullPatient.temperature ?? "",
+          patientBloodPressure: fullPatient.bp ?? fullPatient.blood_pressure ?? "",
           patientHeight: fullPatient.height ?? "",
           patientWeight: fullPatient.weight ?? "",
           patientAllergies: fullPatient.allergies ?? "",

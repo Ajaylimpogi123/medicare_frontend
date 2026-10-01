@@ -5,8 +5,8 @@ import {
   updateDisease,
 } from "@/api/disease";
 import { useAuth } from "@/components/context/auth-context";
-import { router } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -47,8 +47,8 @@ export default function DiseasesScreen() {
   const [description, setDescription] = useState("");
 
   const loadDiseases = async (showRefresh = false) => {
+    // Full-screen spinner only on first load (isLoading starts true); later reloads are quiet
     if (showRefresh) setIsRefreshing(true);
-    else setIsLoading(true);
     try {
       const res = await fetchDiseases();
       setDiseases(res.data.data ?? res.data ?? []);
@@ -60,9 +60,11 @@ export default function DiseasesScreen() {
     }
   };
 
-  useEffect(() => {
-    loadDiseases();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadDiseases();
+    }, [])
+  );
 
   const filteredDiseases = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();

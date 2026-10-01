@@ -36,8 +36,16 @@ export default function PrescriptionHistoryScreen() {
     if (!id) return;
     const loadData = async () => {
       try {
-        const res = await fetchPatientConsultations(Number(id));
-        setConsultations(res.data.data || []);
+        // Endpoint is paginated (20 per page) — walk every page for the full history
+        let page = 1;
+        let all: Consultation[] = [];
+        while (true) {
+          const res = await fetchPatientConsultations(Number(id), page);
+          all = all.concat(res.data.data || []);
+          if (!res.data.last_page || page >= res.data.last_page) break;
+          page++;
+        }
+        setConsultations(all);
       } catch (error) {
         Alert.alert("Error", "Could not load prescription history.");
       } finally {
